@@ -10,7 +10,7 @@ type Client struct{
 	room *Room
 	room_id int
 	conn *websocket.Conn
-	send chan []byte
+	send chan SendData
 	name string
 }
 
@@ -36,15 +36,21 @@ func ( c *Client) readPump(){
 
 		log.Println(user.Type)
 		if user.Type == "enter" {
+			//ルームへの参加
 			c.name = user.Name
 			c.room_id = user.Room_id
 			entrance.enter <- c
 		}else if user.Type == "leave" {
+			//ルームから離脱
 			c.room.unregister <- c
 		}else if user.Type == "post" {
-			c.room.broadcast <- []byte(user.Body)
-		}else{
-			c.room.broadcast <- mes
+			var sendData SendData
+			sendData.Type = "post"
+			sendData.Message = user.Body
+			var name []string
+			name = append(name , c.name )
+			sendData.Users = name
+			c.room.broadcast <- sendData
 		}
 
 	}
@@ -57,7 +63,7 @@ func (c *Client) writePump(){
 
 	for{
 		select{
-		case message , ok := <-c.send:
+		case send_data , ok := <-c.send:
 			if !ok{
 				c.conn.WriteMessage( websocket.CloseMessage , []byte{})
 				return
@@ -66,13 +72,13 @@ func (c *Client) writePump(){
 			if err != nil {
 				return
 			}
-			w.Write(message)
 
-			n := len(c.send)
-			for i:= 0 ; i < n ; i++ {
-				w.Write([]byte{'\n'})
-				w.Write(<-c.send)
+			message , err := json.Marshal( send_data )
+			if err != nil{
+				log.Fatalf("MarshalError err:%v " , err )
+				return
 			}
+			w.Write(message)
 
 			w.Close()
 		}

@@ -15,7 +15,7 @@
     <div class="container">
       <div class="login" v-if="!isLogin">
         <h2>Chat!</h2>
-        <input type="text" placeholder="name" v-model="inputName">
+        <input type="text" placeholder="name" v-model="inputName" @keyup.enter="login" autofocus>
         <button @click="login">参加する</button>
       </div>
       <template v-if="isSelectRooms">
@@ -34,16 +34,21 @@
         <div class="chat_container">
           <div class="users">
             <div>ユーザー一覧</div>
+            <ul>
+              <li v-for="(user , index ) in roomUsers" :key="index">
+                {{user }}
+              </li>
+            </ul>
           </div>
           <div class="posts">
             <ul>
               <li v-for="(post,index) in chatAllPosts" :key="index">
-                {{ post }}
+                [{{ post.user }}]>> {{post.message}}
               </li>
             </ul>
           </div>
           <div class="chat_panel">
-            <input type="text" v-model="chatMessage">
+            <input type="text" v-model="chatMessage" @keyup.enter="postChatMessage" autofocus>
             <button @click="postChatMessage">送信</button>
             <button @click="exitRoom">退出</button>
           </div>

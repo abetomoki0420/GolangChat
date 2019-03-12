@@ -4,6 +4,7 @@ import(
 	"fmt"
 	"net/http"
 	"log"
+	"strconv"
 	"encoding/json"
 )
 
@@ -29,6 +30,12 @@ type User struct{
 	Body string `json:"body"`
 }
 
+type SendData struct{
+	Type string `json:"type"`
+	Message string `json:"message"`
+	Users []string `json:"users"`
+}
+
 func roomsHandler( w http.ResponseWriter , r *http.Request){
 	rooms := []RoomSummary{}
 	for _,room := range(entrance.rooms){
@@ -37,6 +44,26 @@ func roomsHandler( w http.ResponseWriter , r *http.Request){
 	w.Header().Set("Content-Type", "application/json; charset=UTF-8")
 	w.WriteHeader(http.StatusOK)
 	res ,_ := json.Marshal(rooms)
+	w.Write(res)
+}
+
+func usersHandler( w http.ResponseWriter , r *http.Request){
+	var get_id = r.URL.Query().Get("id")
+	room_id , _:= strconv.Atoi( get_id)
+
+	var users []string
+	for _ , room := range(entrance.rooms){
+		if room.id != room_id {
+			continue
+		}
+
+		for client := range(room.clients){
+			users = append( users , client.name)
+		}
+	}
+	w.Header().Set("Content-Type", "application/json; charset=UTF-8")
+	w.WriteHeader(http.StatusOK)
+	res ,_ := json.Marshal(users)
 	w.Write(res)
 }
 
@@ -52,7 +79,7 @@ func main(){
 
 	http.HandleFunc("/" , serveHome)
 	http.HandleFunc("/api/rooms/show", roomsHandler)
-	// http.HandleFunc("/api/rooms/create", roomsHandler)
+	http.HandleFunc("/api/rooms/room", usersHandler)
 
 	//ルームへのアクセス
 	http.HandleFunc("/ws" , func( w http.ResponseWriter , r *http.Request ){
@@ -67,8 +94,8 @@ func main(){
 			room: nil ,
 			room_id: -1,
 			conn: conn ,
-			send: make(chan []byte , 256),
-			name: "noname"  ,
+			send: make( chan SendData ),
+			name: ""  ,
 		}
 
 		go client.readPump()

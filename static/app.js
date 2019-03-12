@@ -11,11 +11,9 @@ let vm = new Vue({
       currentRoom: null,
       rooms_summary: [],
       chatMessage: "",
-      chatAllPosts: []
+      chatAllPosts: [],
+      roomUsers: []
     }
-  },
-  created() {
-    //NONE
   },
   methods: {
     login() {
@@ -33,24 +31,39 @@ let vm = new Vue({
       this.inputName = ""
     },
     enterRoom(room) {
-      console.log("Enter Room SocketState: ", socket)
-      console.log(`Enter to ${room.id}`)
+      // console.log("Enter Room SocketState: ", socket)
+      // console.log(`Enter to ${room.id}`)
       if (!socket) {
         socket = new WebSocket("ws://localhost:8080/ws")
         socket.onopen = (ev) => {
-          console.log("Websocket Connect")
+          // console.log("Websocket Connect")
           socket.send(JSON.stringify({
             type: "enter",
             name: this.inputName,
             room_id: room.id,
             body: ""
           }))
+
         }
 
         socket.onmessage = (ev) => {
-          console.log(ev)
-          this.chatAllPosts.push(ev.data)
+          // console.log(ev)
+          const data = JSON.parse(ev.data)
+          if (data.type == "register") {
+            //ユーザー一覧の更新
+            this.roomUsers = data.users
+            this.registerAnnounce(data.message, true)
+          } else if (data.type == "unregister") {
+            this.registerAnnounce(data.message, false)
+            this.roomUsers = data.users
+          } else {
+            this.chatAllPosts.push({
+              user: data.users[0],
+              message: data.message
+            })
+          }
         }
+
       }
 
       this.isRoom = true
@@ -74,6 +87,12 @@ let vm = new Vue({
     getCurrentSummary() {
       axios.get("/api/rooms/show").then(res => {
         this.rooms_summary = res.data
+        console.log(this.rooms_summary)
+        this.rooms_summary.sort(function (a, b) {
+          if (a.id < b.id) return -1
+          if (a.id > b.id) return 1
+          return 0
+        })
         this.isLogin = true
       })
     },
@@ -88,6 +107,18 @@ let vm = new Vue({
 
         this.chatMessage = ""
       }
+    },
+    registerAnnounce(name, isRegister) {
+      let announce = ""
+      if (isRegister) {
+        announce = "が入室しました。"
+      } else {
+        announce = "が退室しました。"
+      }
+      this.chatAllPosts.push({
+        user: name,
+        message: announce
+      })
     }
   },
   computed: {
